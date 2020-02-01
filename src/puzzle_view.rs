@@ -1,3 +1,4 @@
+use crate::debug;
 use crate::gradient::{Color, Position};
 use crate::grid::Grid;
 use crate::puzzle::Puzzle;
@@ -116,7 +117,9 @@ fn grid_from_puzzle(puzzle: &Puzzle) -> Grid<Cell> {
         }
     });
 
-    shuffle_grid(&mut grid, seed);
+    if !debug::disable_shuffle() {
+        shuffle_grid(&mut grid, seed);
+    }
 
     grid
 }
@@ -167,6 +170,8 @@ fn color_tile(cell: &Cell, is_active: bool, onclick: Callback<ClickEvent>) -> Ht
                 {
                     if cell.is_locked {
                         html! {<div class="lock" />}
+                    } else if debug::show_cell_numbers() {
+                        html! {<div>{cell.index}</div>}
                     } else {
                         html! {}
                     }

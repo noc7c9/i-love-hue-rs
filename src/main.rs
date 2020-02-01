@@ -3,6 +3,7 @@ use stdweb::js;
 use web_logger;
 use yew::{html, Callback, ClickEvent, Component, ComponentLink, Html, ShouldRender};
 
+mod debug;
 mod gradient;
 mod grid;
 mod puzzle;
@@ -40,7 +41,6 @@ impl Component for App {
         let win_height = js! {
             return window.innerHeight|| document.documentElement.clientHeight|| document.body.clientHeight;
         }.try_into().expect("Failed to get window height");
-        log::info!("{:?},{:?}", win_width, win_height);
 
         App {
             link,
@@ -94,6 +94,6 @@ fn game_over_ui_overlay(onclick: Callback<ClickEvent>) -> Html {
 
 fn main() {
     web_logger::init();
-
+    debug::init();
     yew::start_app::<App>();
 }
