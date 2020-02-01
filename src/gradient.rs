@@ -51,8 +51,111 @@ impl Color {
                 let a = a.unwrap_hsl();
                 let b = b.unwrap_hsl();
 
+                fn lerp_hue(start: f64, end: f64, ratio: f64) -> f64 {
+                    // This function linearly interpolates (lerps) between the two hue values
+                    // (start & end) either positively or negatively (wrapping around) in
+                    // whichever direction would be shortest.
+                    //
+                    // Note: this assumes start <= end;
+                    //
+                    // The hue values are from 0.0 to 360.0 inclusive
+                    //
+                    // The ratio is how much of start vs end to have in the calculated value
+                    //  - a ratio of 0.0 means 100% start + 0% end
+                    //  - a ratio of 1.0 means 0% start + 100% end
+                    // The ratio goes from 0.0 to 1.0 inclusive
+                    //
+                    //
+                    // There are two possibilities for which direction to lerp:
+                    //  - Case A: The positive direction is shorter
+                    // 0.0 --------------------------------------------------------------- 360.0
+                    //                       ^ <==== shorter ====> ^
+                    //                     Start                  End
+                    //
+                    //  - Case A: The negative direction is shorter
+                    // 0.0 --------------------------------------------------------------- 360.0
+                    //     == short- ==> ^                                  ^ <=== -er ===
+                    //                 Start                               End
+
+                    use std::cmp::Ordering;
+                    if let Some(Ordering::Less) | Some(Ordering::Equal) = start.partial_cmp(&end) {
+                    } else {
+                        panic!("lerp_hue only works if start <= end");
+                    }
+
+                    // First figure out which direction is shorter
+                    let positive_distance = end - start;
+                    let negative_distance = 360.0 - positive_distance;
+                    if positive_distance <= negative_distance {
+                        // Case A: lerp positively from start to end
+                        lerp(start, end, ratio)
+                    } else {
+                        // Case B: lerp negatively
+                        //         from start to 0 (left side) and then
+                        //         from 360 to end (right side)
+                        //
+                        // Both sides need to be lerped independantly to implement the wrapping
+                        // behaviour
+
+                        // For the given ratio, we need to figure out
+                        // which side to lerp and
+                        // how much much each side takes up
+                        //
+                        //             These are all the possible values of ratio
+                        // 0.0 ------------------------------------------------------------- 1.0
+                        //                 And it is split in two at point X
+                        //     <==================> X <====================================>
+                        //           left side                     right side
+
+                        let length_left = start;
+                        let length_right = 360.0 - end;
+                        let length_total = length_left + length_right;
+
+                        let x = length_left / length_total;
+
+                        // We first need to figure out which side the ratio is on
+                        let is_on_left = ratio < x;
+
+                        // In order to lerp each side, we also need to map each side to the
+                        // range 0.0 to 1.0
+                        //
+                        // ie. map
+                        //   -  left: [0.0, X] => [0.0, 1.0]
+                        //   - right: [X, 1.0] => [0.0, 1.0]
+                        //
+                        // 0.0 <==================> X <====================================> 1.0
+                        // 0.0      left side      1.0
+                        //                         0.0              right side               1.0
+                        //
+                        // This ends up being
+                        //  left: ratio / x
+                        // right: (ratio - x) / (1 - x)
+
+                        // Now we can lerp each side
+                        if is_on_left {
+                            lerp(start, 0.0, ratio / x)
+                        } else {
+                            lerp(360.0, end, (ratio - x) / (1.0 - x))
+                        }
+                    }
+                };
+
+                let h = if a.0 < b.0 {
+                    lerp_hue(a.0, b.0, ratio)
+                } else {
+                    let mut h = -lerp_hue(-a.0, -b.0, ratio);
+                    while h < 0.0 {
+                        h += 360.0
+                    }
+                    while h > 360.0 {
+                        h -= 360.0
+                    }
+                    h
+                };
+
                 Self::HSL {
-                    h: lerp(a.0, b.0, ratio),
+                    h,
+                    // h: lerp(a.0, b.0, ratio),
                     s: lerp(a.1, b.1, ratio),
                     l: lerp(a.2, b.2, ratio),
                 }
