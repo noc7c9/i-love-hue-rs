@@ -1,5 +1,4 @@
 use crate::debug;
-use crate::gradient::{Color, Position};
 use crate::grid::Grid;
 use crate::puzzle::Puzzle;
 use rand::prelude::*;
@@ -14,7 +13,7 @@ pub struct PuzzleView {
 
 struct Cell {
     index: usize,
-    color: Color,
+    style: String,
     is_locked: bool,
 }
 
@@ -103,22 +102,18 @@ fn grid_from_puzzle(puzzle: &Puzzle) -> Grid<Cell> {
     let Puzzle {
         width,
         height,
-        seed,
+        shuffle_seed,
         ..
     } = *puzzle;
 
-    let mut grid = Grid::from_closure(width, height, |x, y| {
-        let x_off = x as f64 / (width as f64 - 1.0);
-        let y_off = y as f64 / (height as f64 - 1.0);
-        Cell {
-            index: y * width + x,
-            color: puzzle.gradient.color_at(Position::new(x_off, y_off)),
-            is_locked: puzzle.locked.contains(&(x, y)),
-        }
+    let mut grid = Grid::from_closure(width, height, |x, y| Cell {
+        index: y * width + x,
+        style: format!("background: {}", puzzle.get_cell_color(x, y).to_css()),
+        is_locked: puzzle.is_cell_locked(x, y),
     });
 
     if !debug::disable_shuffle() {
-        shuffle_grid(&mut grid, seed);
+        shuffle_grid(&mut grid, shuffle_seed);
     }
 
     grid
@@ -163,10 +158,9 @@ fn color_tile(cell: &Cell, is_active: bool, onclick: Callback<ClickEvent>) -> Ht
         (false, true) => "cell locked",
         (false, false) => "cell interactive",
     };
-    let style = format!("background: {}", cell.color.to_css());
     html! {
         <div class=class onclick=onclick>
-            <div class="tile" style=style>
+            <div class="tile" style=cell.style>
                 {
                     if cell.is_locked {
                         html! {<div class="lock" />}

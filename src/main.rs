@@ -1,4 +1,3 @@
-use rand::random;
 use stdweb::js;
 use web_logger;
 use yew::{html, Callback, ClickEvent, Component, ComponentLink, Html, ShouldRender};
@@ -9,6 +8,7 @@ mod grid;
 mod puzzle;
 mod puzzle_view;
 
+use puzzle::Puzzle;
 use puzzle_view::PuzzleView;
 
 enum GameState {
@@ -20,12 +20,13 @@ enum GameState {
 struct App {
     link: ComponentLink<Self>,
     state: GameState,
-    puzzle: puzzle::Puzzle,
+    puzzle: Puzzle,
 }
 
 enum Msg {
     StartGame,
-    CompleteGame,
+    CompletePuzzle,
+    NextLevel,
 }
 
 impl Component for App {
@@ -33,29 +34,23 @@ impl Component for App {
     type Properties = ();
 
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
-        use stdweb::unstable::TryInto;
-
-        let win_width = js! {
-            return window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-        }.try_into().expect("Failed to get window height");
-        let win_height = js! {
-            return window.innerHeight|| document.documentElement.clientHeight|| document.body.clientHeight;
-        }.try_into().expect("Failed to get window height");
-
+        let win_size = get_win_size();
         App {
             link,
             state: GameState::Initial,
-            puzzle: puzzle::generate_lvl1_puzzle((win_width, win_height)),
+            puzzle: Puzzle::generate_lvl1(win_size),
         }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::StartGame => {
-                self.puzzle.seed = random();
+            Msg::StartGame => self.state = GameState::Playing,
+            Msg::NextLevel => {
+                let win_size = get_win_size();
+                self.puzzle.next_level(win_size);
                 self.state = GameState::Playing
             }
-            Msg::CompleteGame => self.state = GameState::GameOver,
+            Msg::CompletePuzzle => self.state = GameState::GameOver,
         }
         true
     }
@@ -63,17 +58,29 @@ impl Component for App {
     fn view(&self) -> Html {
         html! {
             <>
-                <PuzzleView puzzle=self.puzzle.clone() oncomplete=self.link.callback(|_| Msg::CompleteGame) />
+                <PuzzleView puzzle=self.puzzle.clone() oncomplete=self.link.callback(|_| Msg::CompletePuzzle) />
                 {
                     match self.state {
                         GameState::Initial => start_game_ui_overlay(self.link.callback(|_| Msg::StartGame)),
                         GameState::Playing => html!{},
-                        GameState::GameOver => game_over_ui_overlay(self.link.callback(|_| Msg::StartGame)),
+                        GameState::GameOver => game_over_ui_overlay(self.link.callback(|_| Msg::NextLevel)),
                     }
                 }
             </>
         }
     }
+}
+
+fn get_win_size() -> (usize, usize) {
+    use stdweb::unstable::TryInto;
+
+    let win_width = js! {
+            return window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+        }.try_into().expect("Failed to get window height");
+    let win_height = js! {
+            return window.innerHeight|| document.documentElement.clientHeight|| document.body.clientHeight;
+        }.try_into().expect("Failed to get window height");
+    (win_width, win_height)
 }
 
 fn start_game_ui_overlay(onclick: Callback<ClickEvent>) -> Html {

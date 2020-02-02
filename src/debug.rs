@@ -20,6 +20,19 @@ pub fn disable_shuffle() -> bool {
     }
 }
 
+pub fn starting_difficulty() -> Option<usize> {
+    if cfg!(debug_assertions) {
+        (js! {
+            const value = parseInt(localStorage.DEBUG_STARTING_DIFFICULTY);
+            return !Number.isNaN(value) && value > 0 ? value : null;
+        })
+        .try_into()
+        .ok()
+    } else {
+        None
+    }
+}
+
 pub fn init() {
     if cfg!(debug_assertions) {
         // Setup JS helper functions to toggle debug settings
@@ -30,6 +43,8 @@ pub fn init() {
             window.debug = {
                 toggleShowCellNumbers: toggle("DEBUG_SHOW_CELL_NUMBERS"),
                 toggleDisableShuffle: toggle("DEBUG_DISABLE_SHUFFLE"),
+                setStartingDifficulty: value => localStorage.setItem("DEBUG_STARTING_DIFFICULTY", value),
+                unsetStartingDifficulty: () => localStorage.removeItem("DEBUG_STARTING_DIFFICULTY"),
             }
         }
 
@@ -39,6 +54,9 @@ pub fn init() {
         }
         if disable_shuffle() {
             log::warn!("DEBUG_DISABLE_SHUFFLE is turned on");
+        }
+        if let Some(difficulty) = starting_difficulty() {
+            log::warn!("DEBUG_STARTING_DIFFICULTY is set to {}", difficulty);
         }
     }
 }
