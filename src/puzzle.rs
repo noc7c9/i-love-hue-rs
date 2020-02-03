@@ -1,5 +1,7 @@
 use crate::debug;
 use crate::gradient::{Color, Gradient, Position};
+use lazy_static::lazy_static;
+use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use rand_distr::Normal;
 
@@ -30,7 +32,7 @@ impl Puzzle {
             width,
             height,
             gradient: generate_gradient(difficulty),
-            locking_pattern: LockingPattern::Corners,
+            locking_pattern: generate_locking_pattern(difficulty),
             shuffle_seed: random(),
         }
     }
@@ -42,10 +44,26 @@ impl Puzzle {
     }
 
     pub fn is_cell_locked(&self, x: usize, y: usize) -> bool {
+        use LockingPattern::*;
+
+        let is_corner = || (x == 0 || x == (self.width - 1)) && (y == 0 || y == (self.height - 1));
+        let is_border = || x == 0 || x == (self.width - 1) || y == 0 || y == (self.height - 1);
+        let is_checkboard = || (x + y) % 2 == 0;
+        let is_shortlines = || (if self.width > self.height { x } else { y }) % 2 == 0;
+        let is_longlines = || (if self.width < self.height { x } else { y }) % 2 == 0;
+
         match self.locking_pattern {
-            LockingPattern::Corners => {
-                (x == 0 || x == (self.width - 1)) && (y == 0 || y == (self.height - 1))
-            }
+            Corners => is_corner(),
+            Borders => is_border(),
+            ReverseBorders => !is_border(),
+            CheckerboardA => is_checkboard(),
+            CheckerboardB => !is_checkboard(),
+            HalfCheckerboardA => x % 2 == 0 && y % 2 == 0,
+            HalfCheckerboardB => x % 2 != 0 && y % 2 != 0,
+            ShortLinesA => is_shortlines(),
+            ShortLinesB => !is_shortlines(),
+            LongLinesA => is_longlines(),
+            LongLinesB => !is_longlines(),
         }
     }
 }
@@ -53,6 +71,16 @@ impl Puzzle {
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum LockingPattern {
     Corners,
+    Borders,
+    ReverseBorders,
+    CheckerboardA,
+    CheckerboardB,
+    HalfCheckerboardA,
+    HalfCheckerboardB,
+    ShortLinesA,
+    ShortLinesB,
+    LongLinesA,
+    LongLinesB,
 }
 
 fn generate_puzzle_size(
@@ -124,4 +152,29 @@ fn generate_gradient(difficulty: usize) -> Gradient {
         .bottom_left(bottom_left.to_rgb())
         .bottom_right(bottom_right.to_rgb())
         .build()
+}
+
+fn generate_locking_pattern(_difficulty: usize) -> LockingPattern {
+    // generate a random locking pattern
+    // weighted roughly according to difficulty of the locking pattern
+    // harder patterns have a lower weight and are less likely to be selected
+    use LockingPattern::*;
+    const PATTERNS: [(LockingPattern, usize); 11] = [
+        (Corners, 1),
+        (Borders, 2),
+        (HalfCheckerboardA, 5),
+        (HalfCheckerboardB, 5),
+        (ShortLinesA, 6),
+        (ShortLinesB, 6),
+        (LongLinesA, 7),
+        (LongLinesB, 7),
+        (CheckerboardA, 7),
+        (CheckerboardB, 7),
+        (ReverseBorders, 2), // lower because this pattern is too easy
+    ];
+    lazy_static! {
+        static ref DISTRIBUTION: WeightedIndex<usize> =
+            WeightedIndex::new(PATTERNS.iter().map(|item| item.1)).unwrap();
+    }
+    PATTERNS[DISTRIBUTION.sample(&mut thread_rng())].0
 }

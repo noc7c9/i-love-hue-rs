@@ -12,3 +12,4 @@ rand = { version = "0.7.3", features = ["stdweb"] }
 rand_pcg = "0.2.1"
 stdweb = "0.4.20"
 rand_distr = "0.2.2"
+lazy_static = "1.4.0"
