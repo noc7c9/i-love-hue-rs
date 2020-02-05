@@ -1,12 +1,13 @@
 use crate::debug;
 use crate::gradient::{Color, Gradient, Position};
+use crate::grid::{Grid, Iter as GridIter};
 use lazy_static::lazy_static;
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use rand_distr::Normal;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Puzzle {
+pub struct PuzzleSettings {
     difficulty: usize,
     pub width: usize,
     pub height: usize,
@@ -15,15 +16,105 @@ pub struct Puzzle {
     pub shuffle_seed: u64,
 }
 
+#[derive(Debug, Clone)]
+pub struct Puzzle {
+    pub settings: PuzzleSettings,
+    grid: Grid<PuzzleCell>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PuzzleCell {
+    pub solved_position: usize,
+    pub is_locked: bool,
+    pub color: Color,
+}
+
 impl Puzzle {
     pub fn generate_lvl1(win_size: (usize, usize)) -> Self {
-        Self::from_difficulty(debug::starting_difficulty().unwrap_or(1), win_size)
+        let difficulty = debug::starting_difficulty().unwrap_or(1);
+        let settings = PuzzleSettings::from_difficulty(difficulty, win_size);
+        Self::from_settings(settings)
     }
 
     pub fn next_level(&mut self, win_size: (usize, usize)) {
-        *self = Self::from_difficulty(self.difficulty + 1, win_size);
+        let difficulty = self.settings.difficulty + 1;
+        let settings = PuzzleSettings::from_difficulty(difficulty, win_size);
+        *self = Self::from_settings(settings);
     }
 
+    fn from_settings(settings: PuzzleSettings) -> Self {
+        let PuzzleSettings { width, height, .. } = settings;
+
+        let grid = Grid::from_closure(width, height, |x, y| PuzzleCell {
+            solved_position: y * width + x,
+            is_locked: settings.is_cell_locked(x, y),
+            color: settings.get_cell_color(x, y),
+        });
+
+        let mut puzzle = Self { settings, grid };
+
+        if !debug::disable_shuffle() {
+            puzzle.shuffle();
+        }
+
+        puzzle
+    }
+
+    fn shuffle(&mut self) {
+        let unlocked_tiles = self
+            .grid
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, cell)| if cell.is_locked { None } else { Some(idx) })
+            .collect::<Vec<usize>>();
+        let mut shuffled = unlocked_tiles.clone();
+
+        shuffled.shuffle(&mut rand_pcg::Pcg64Mcg::seed_from_u64(
+            self.settings.shuffle_seed,
+        ));
+
+        for (original_position, shuffled_position) in unlocked_tiles.into_iter().zip(shuffled) {
+            self.grid.swap(original_position, shuffled_position);
+        }
+
+        // If the shuffled puzzle is solved, reshuffled with the next seed
+        if self.is_solved() {
+            self.settings.shuffle_seed += 1;
+            self.shuffle();
+        }
+    }
+
+    pub fn dimensions(&self) -> (usize, usize) {
+        self.grid.dims()
+    }
+
+    pub fn get(&self, index: usize) -> &PuzzleCell {
+        self.grid.get(index)
+    }
+
+    pub fn swap(&mut self, a: usize, b: usize) {
+        self.grid.swap(a, b)
+    }
+
+    pub fn iter(&self) -> GridIter<PuzzleCell> {
+        self.grid.iter()
+    }
+
+    pub fn is_solved(&self) -> bool {
+        let mut iter = self.grid.iter();
+        let mut prev = iter.next().map(|cell| cell.solved_position);
+        for cell in iter {
+            let this = Some(cell.solved_position);
+            if prev > this {
+                return false;
+            }
+            prev = this;
+        }
+        true
+    }
+}
+
+impl PuzzleSettings {
     fn from_difficulty(difficulty: usize, win_size: (usize, usize)) -> Self {
         log::info!("difficulty = {}", difficulty);
         let (width, height) = generate_puzzle_size(difficulty, win_size);
@@ -37,13 +128,13 @@ impl Puzzle {
         }
     }
 
-    pub fn get_cell_color(&self, x: usize, y: usize) -> Color {
+    fn get_cell_color(&self, x: usize, y: usize) -> Color {
         let x_off = x as f64 / (self.width as f64 - 1.0);
         let y_off = y as f64 / (self.height as f64 - 1.0);
         self.gradient.color_at(Position::new(x_off, y_off))
     }
 
-    pub fn is_cell_locked(&self, x: usize, y: usize) -> bool {
+    fn is_cell_locked(&self, x: usize, y: usize) -> bool {
         use LockingPattern::*;
 
         let is_corner = || (x == 0 || x == (self.width - 1)) && (y == 0 || y == (self.height - 1));
