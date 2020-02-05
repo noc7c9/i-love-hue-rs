@@ -117,7 +117,6 @@ impl Puzzle {
 
 impl PuzzleSettings {
     fn from_difficulty(difficulty: usize, win_size: (usize, usize)) -> Self {
-        log::info!("difficulty = {}", difficulty);
         let (width, height) = generate_puzzle_size(difficulty, win_size);
         Self {
             difficulty,
@@ -186,7 +185,6 @@ fn generate_puzzle_size(
     // X is based on the difficulty with higher difficulties creating bigger puzzles
     const MIN_CELLS: usize = 5;
     let short = MIN_CELLS + (difficulty as f64).log(4.0).powf(2.0).trunc() as usize;
-    log::info!("short = {}", short);
 
     let ratio = win_width.max(win_height) as f64 / win_width.min(win_height) as f64;
     let long = 2.max((short as f64 * ratio).round() as usize);
@@ -203,7 +201,6 @@ fn generate_gradient(difficulty: usize) -> Gradient {
     const MAX_HUE: f64 = 300.0;
     const MIN_HUE: f64 = 90.0;
     let hue_variance = (MAX_HUE - (difficulty - 1) as f64).max(MIN_HUE);
-    log::info!("hue variance = {}", hue_variance);
 
     debug_assert!(hue_variance > 0.0 && hue_variance <= 360.0);
 
@@ -235,8 +232,6 @@ fn generate_gradient(difficulty: usize) -> Gradient {
     let top_right = Color::hsl(hues[1], gen_s(), gen_l());
     let bottom_right = Color::hsl(hues[2], gen_s(), gen_l());
     let bottom_left = Color::hsl(hues[3], gen_s(), gen_l());
-
-    // log::info!("\nstart hue = {}\nend hue = {}({})\n\ntop left = {:?}\ntop right = {:?}\nbottom left = {:?}\nbottom right = {:?}", start_hue, start_hue + hue_variance, start_hue + diff * 3.0, top_left, top_right, bottom_left, bottom_right);
 
     Gradient::builder()
         .top_left(top_left.to_rgb())
