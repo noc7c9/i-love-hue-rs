@@ -7,9 +7,12 @@ mod gradient;
 mod grid;
 mod puzzle;
 mod puzzle_view;
+mod savegame;
 
 use puzzle::Puzzle;
 use puzzle_view::PuzzleView;
+
+pub const SAVEGAME_KEY: &str = "SAVEGAME";
 
 enum GameState {
     Initial,
@@ -35,10 +38,23 @@ impl Component for App {
 
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
         let win_size = get_win_size();
+        let puzzle = if let Some(mut puzzle) = savegame::load::<Puzzle>(SAVEGAME_KEY) {
+            // if the loaded puzzle is already solved
+            if puzzle.is_solved() {
+                // go to the next level
+                puzzle.next_level(win_size);
+                savegame::save(SAVEGAME_KEY, &puzzle);
+            }
+            puzzle
+        } else {
+            let puzzle = Puzzle::generate_lvl1(win_size);
+            savegame::save(SAVEGAME_KEY, &puzzle);
+            puzzle
+        };
         App {
             link,
             state: GameState::Initial,
-            puzzle: Puzzle::generate_lvl1(win_size),
+            puzzle,
         }
     }
 
@@ -48,6 +64,7 @@ impl Component for App {
             Msg::NextLevel => {
                 let win_size = get_win_size();
                 self.puzzle.next_level(win_size);
+                savegame::save(SAVEGAME_KEY, &self.puzzle);
                 self.state = GameState::Playing
             }
             Msg::CompletePuzzle => self.state = GameState::GameOver,

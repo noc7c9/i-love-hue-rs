@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 mod color_conversions;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Color {
     RGB { r: u8, g: u8, b: u8 },
     HSL { h: f64, s: f64, l: f64 },
@@ -110,7 +112,7 @@ impl Color {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Position {
     x: f64,
     y: f64,
@@ -130,13 +132,13 @@ impl Position {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 struct Stop {
     color: Color,
     position: Position,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Gradient {
     top_left: Stop,
     top_right: Stop,

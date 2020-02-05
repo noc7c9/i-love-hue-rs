@@ -5,24 +5,25 @@ use lazy_static::lazy_static;
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use rand_distr::Normal;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PuzzleSettings {
     difficulty: usize,
-    pub width: usize,
-    pub height: usize,
+    width: usize,
+    height: usize,
     gradient: Gradient,
     locking_pattern: LockingPattern,
-    pub shuffle_seed: u64,
+    shuffle_seed: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Puzzle {
     pub settings: PuzzleSettings,
     grid: Grid<PuzzleCell>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PuzzleCell {
     pub solved_position: usize,
     pub is_locked: bool,
@@ -159,7 +160,7 @@ impl PuzzleSettings {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 enum LockingPattern {
     Corners,
     Borders,

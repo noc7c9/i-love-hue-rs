@@ -1,5 +1,7 @@
 use crate::debug;
 use crate::puzzle::{Puzzle, PuzzleCell};
+use crate::savegame;
+use crate::SAVEGAME_KEY;
 use yew::prelude::*;
 
 pub struct PuzzleView {
@@ -43,6 +45,7 @@ impl Component for PuzzleView {
                 if let Some(active_tile) = self.active_tile {
                     if active_tile != index {
                         self.props.puzzle.swap(active_tile, index);
+                        savegame::save(SAVEGAME_KEY, &self.props.puzzle);
                         if self.props.puzzle.is_solved() {
                             self.props.oncomplete.emit(());
                         }
